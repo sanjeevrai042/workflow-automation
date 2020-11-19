@@ -15,14 +15,16 @@ public class WorkFlowService {
 	@Autowired
 	HttpClient client;
 	
-	private JsonReader reader  = new JsonReader();
+	@Autowired
+	private JsonReader reader;
 	
 	
 	public String processFlow(String token, String body) {
 		 try {
-			String response = client.callOutlookAPI(token, body, "POST");
-			
-			 if(response != null) {
+			 
+			String uri = "/calendar/getschedule";
+			String response = client.callOutlookAPI(token, body, "POST",uri);
+			if(response != null) {
 				 TreeNode root = reader.getParentNode(response);
 				 reader.getvalues(root);
 			 }

@@ -17,9 +17,11 @@ public class HttpClient {
 	@Autowired
 	private RestTemplate restTemplate;
 	
-	@Value("ms.outlook.graph.api.url")
+	@Value("${ms.outlook.graph.api.url}")
 	private String url;
 	
+	@Value("${jira.service.url}")
+	private String jiraUrl;
 	/**
 	 * Method to make http call
 	 * @param token
@@ -28,18 +30,18 @@ public class HttpClient {
 	 * @return String
 	 */
 	
-	 public String callOutlookAPI(String token,String body,String method) {
-		 
-		 return executeHttpRequest(token, body, method);
+	 public String callOutlookAPI(String token,String body,String method,String uri) {
+		 return executeHttpRequest(token, body, method,uri);
 	 }
 	 
-	 private String callJiraAPI(String token,String body,String method) {
-		 return executeHttpRequest(token, body, method);
+	 public String callJiraAPI(String token,String body,String method,String uri) {
+		 return executeHttpRequest(token, body, method,uri);
 	 }
 	
-	private String executeHttpRequest(String token,String body,String method){
-		RequestEntity<?> buildRequest = buildRequest(token, body, method);
-		return restTemplate.exchange(buildRequest, String.class).getBody();
+	private String executeHttpRequest(String token,String body,String method,String uri){
+		RequestEntity<?> buildRequest = buildRequest(token, body, method,uri);
+		String response = restTemplate.exchange(buildRequest, String.class).getBody();
+		return response;
 		
 	}
 	
@@ -50,27 +52,23 @@ public class HttpClient {
 	 * @param method
 	 * @return RequestEntity
 	 */
-	private RequestEntity<?> buildRequest(String token,String body,String method){
+	private RequestEntity<?> buildRequest(String token,String body,String method,String uri){
 		try {
 		switch (method) {
 			case "GET":
-				return RequestEntity.get(new URI(url)).headers(buildHeaders(token)).build();
+				return RequestEntity.get(new URI(url+uri)).headers(buildHeaders(token)).build();
 			case "POST":
-				return RequestEntity.post(new URI(url)).headers(buildHeaders(token)).body(body);
-				
-			case "PUT":
-				
-				break;
-	
+				return RequestEntity.post(new URI(url+uri)).headers(buildHeaders(token)).body(body);
+			case "JIRA":
+				return RequestEntity.post(new URI(jiraUrl+uri)).headers(buildHeaders(token)).body(body);
 			case "DELETE":
-				
 				break;
 
-
-		default:
-			break;
-		}
-		} catch (URISyntaxException e) {
+			default:
+				break;
+			}
+		} 
+		catch (URISyntaxException e) {
 			e.printStackTrace();
 		}
 		return null;

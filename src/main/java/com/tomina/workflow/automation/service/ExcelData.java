@@ -8,7 +8,7 @@ import jxl.Workbook;
 
 public class ExcelData {
 
-	String excelpath = "D:\\HolidayList.xls";
+	String excelpath = "HolidayList.xls";
 	
 	
 	public String getCellValueByCollumAndRowNum(int rowNumber, int colNumber, int sheetNumber) throws Exception {

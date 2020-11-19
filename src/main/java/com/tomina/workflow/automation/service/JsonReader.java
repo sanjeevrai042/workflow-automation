@@ -1,9 +1,12 @@
 package com.tomina.workflow.automation.service;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.TreeNode;
@@ -11,21 +14,18 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.tomina.workflow.automation.httpclient.HttpClient;
 
+@Component
 public class JsonReader {
 
 	public static String START_DATE_TIME;
 	public static String END_DATE_TIME;
+	ObjectMapper o = new ObjectMapper();
 	
-	public static void main(String[] args) throws Exception {
-		JsonReader r = new JsonReader();
-		
-		String outlook_json = null;
-		
-	 // "some response from rest call as a string";
-		TreeNode root = r.getParentNode(outlook_json);
-		r.getvalues(root);
-	}
+	@Autowired
+	private HttpClient client;
+	
 
 	private List<String> getsworkingHours(JsonNode root) throws JsonProcessingException, IOException {
 		ObjectNode workingHours = (ObjectNode) root;
@@ -42,10 +42,10 @@ public class JsonReader {
 		return null;
 	}
 
-	private List<String> getscheduleItems(JsonNode root) throws Exception {
+	private Map<String, String> getscheduleItems(JsonNode root) throws Exception {
 		ArrayNode scheduleItems = (ArrayNode) root;
 		if (scheduleItems == null)
-			return Collections.EMPTY_LIST;
+			return Collections.EMPTY_MAP;
 
 		if (scheduleItems.size() > 0) {
 			for (int i = 0; i < scheduleItems.size(); i++) {
@@ -69,11 +69,12 @@ public class JsonReader {
 					System.out.println("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^");
 					System.out.println("**************JIRA RESPONSE****************");
 					
-				boolean isHoliday =	JiraResponse.updateWorklog(timeDiffInSeconds, formatDateForJira);
-				if(isHoliday) {
-					JiraResponse.jiraResponseMethod(timeDiffInSeconds, formatDateForJira);
-				}
 					
+					  boolean isHoliday = updateWorklog(timeDiffInSeconds,formatDateForJira); 
+					  
+					  if(isHoliday) {
+						  callJira(timeDiffInSeconds, formatDateForJira);
+					  }
 					System.out.println("**************JIRA RESPONSE END****************");
 					
 				}
@@ -85,6 +86,31 @@ public class JsonReader {
 		return null;
 	}
 
+	public void callJira(long timeDiffInSeconds,String formatDateForJira) {
+		String jiraAuthUri = "/rest/auth/1/session";
+		String securityBody = "{\"username\":\"ashua\",\"password\":\"Jan@2020\"}";
+		String jiraTokenResponse  = client.callJiraAPI(null, securityBody, "JIRA", jiraAuthUri);
+		String jiraToken;
+		try {
+			jiraToken = "Basic "+parseJiraToken(jiraTokenResponse);
+			String issueUri = "/rest/api/2/issue/INT-3/worklog";
+			JiraPayload j = new JiraPayload(timeDiffInSeconds, formatDateForJira);
+			String payload = o.writeValueAsString(j);
+			String response = client.callJiraAPI(jiraToken, payload, "JIRA", issueUri);
+			System.out.println(response);
+		
+		} catch (JsonProcessingException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		
+		
+		
+	}
 	public List<String> getvalues(TreeNode root) throws Exception {
 		TreeNode values = root.get("value");
 		if (values == null)
@@ -112,9 +138,28 @@ public class JsonReader {
 	 * @throws IOException
 	 */
 	public TreeNode getParentNode(String json) throws JsonProcessingException, IOException {
-		ObjectMapper o = new ObjectMapper();
 		return o.readTree(json);
 
+	}
+	
+	private String parseJiraToken(String content) throws JsonProcessingException, IOException {
+		TreeNode node =  getParentNode(content);
+		ObjectNode obj = (ObjectNode) node.get("session");
+		return obj.get("value").asText();
+	}
+	public static boolean updateWorklog(long timeInSeconds, String workLog) throws Exception {
+		ExcelData ed = new ExcelData();
+		int noOfRows = ed.getNoOfRows();
+		for (int i = 1; i < noOfRows; i++) {
+			String cellValueByCollumAndRowNum = ed.getCellValueByCollumAndRowNum(i, 0, 0);
+			System.out.println("Value: " + cellValueByCollumAndRowNum + " WorkLogDate: " + workLog);
+			Boolean bool = cellValueByCollumAndRowNum.equals(workLog);
+			System.out.println("Boolean Value: " + bool);
+			if (cellValueByCollumAndRowNum.equals(workLog)) 
+				return false;
+
+		}
+		return true;
 	}
 
 }
